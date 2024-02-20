@@ -43,7 +43,7 @@ def find_similar_images(search_path, image_path):
             if similarity_percentage == 100:
                 similar_images.append(filename)
 
-    if search_path in image_path:
+    if '/'.join(image_path.split("/")[:-1])+"/" == search_path:
         image = image_path.split("/")[-1]
         similar_images.remove(image)
     return similar_images
