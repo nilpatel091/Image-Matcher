@@ -35,17 +35,15 @@ def detect_and_match(image1, image2):
 def find_similar_images(search_path, image_path):
     similar_images = []
     image_to_compare = cv2.imread(image_path)
-
+    image_name = image_path.split("/")[-1]
     for filename in os.listdir(search_path):
         if filename.endswith(".jpg"):
             image = cv2.imread(os.path.join(search_path, filename))
             similarity_percentage = detect_and_match(image, image_to_compare)
-            if similarity_percentage == 100:
-                similar_images.append(filename)
+            if image_name != filename:
+                similar_images.append([filename, similarity_percentage])
 
-    if '/'.join(image_path.split("/")[:-1])+"/" == search_path:
-        image = image_path.split("/")[-1]
-        similar_images.remove(image)
+    similar_images = sorted(similar_images, key=lambda x: x[1], reverse=True)
     return similar_images
 
 

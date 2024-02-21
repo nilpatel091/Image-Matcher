@@ -1,57 +1,87 @@
 import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
-                             QLineEdit, QPushButton, QLabel)
+                             QLineEdit, QPushButton, QLabel, QScrollArea, QSizePolicy)
+from PyQt5.QtCore import Qt
 from utils import find_similar_images
 import os
+from PyQt5.QtGui import QPixmap, QPainter
+
+
+class FileDragDropLineEdit(QLineEdit):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        for url in event.mimeData().urls():
+            path = url.toLocalFile()
+            self.setText(path)
+
+
+class ImageWidget(QWidget):
+    def __init__(self, image_path):
+        super().__init__()
+        self.image_path = image_path
+        self.setFixedSize(200, 200)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        pixmap = QPixmap(self.image_path)
+        painter.drawPixmap(self.rect(), pixmap)
 
 
 class MyWindow(QWidget):
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Image Matcher")
-        self.setFixedWidth(1080)
 
         # Create layout
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(20, 20, 20, 20)
+        self.main_layout = QVBoxLayout()
+        self.main_layout.setContentsMargins(20, 20, 20, 20)
 
-        row1_layout = QHBoxLayout()
-        row2_layout = QHBoxLayout()
-        # Create labels
-        label_search_path = QLabel("Search Path:")
-        label_image_path = QLabel("Image Path:")
+        # Create scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
 
-        # Create input boxes
-        self.input_search_path = QLineEdit()
-        self.input_image_path = QLineEdit()
+        # Create widget to contain the scrollable content
+        scroll_content = QWidget()
+        scroll_content.setLayout(self.main_layout)
+        scroll_content.setSizePolicy(
+            QSizePolicy.MinimumExpanding,
+            QSizePolicy.MinimumExpanding
+        )
+        scroll_area.setWidget(scroll_content)
 
-        # Add labels and input boxes to rows
-        row1_layout.addWidget(label_search_path)
-        row1_layout.addWidget(self.input_search_path)
-        row2_layout.addWidget(label_image_path)
-        row2_layout.addWidget(self.input_image_path)
+        # Add scroll area to the main layout
+        self.setLayout(QVBoxLayout())
+        self.layout().addWidget(scroll_area)
 
-        # Add rows to main layout
-        main_layout.addLayout(row1_layout)
-        main_layout.addLayout(row2_layout)
+        # Create file upload button
+        self.file_upload_button = FileDragDropLineEdit()
+        self.main_layout.addWidget(self.file_upload_button)
 
         # Create submit button
-        submit_button = QPushButton("Submit")
+        submit_button = QPushButton("Upload File")
         submit_button.clicked.connect(self.on_submit_clicked)
-
-        # Add button to main layout
-        main_layout.addWidget(submit_button)
-
-        # Set the main layout for the window
-        self.setLayout(main_layout)
+        self.main_layout.addWidget(submit_button)
 
     def on_submit_clicked(self):
+        for i in range(2, self.main_layout.count()):
+            self.main_layout.itemAt(i).widget().deleteLater()
+
         for label in self.findChildren(QLabel):
             if label.text() not in ["Search Path:", "Image Path:"]:
                 label.deleteLater()
 
-        search_path = self.input_search_path.text()
-        image_path = self.input_image_path.text()
+        search_path = os.getcwd()
+        image_path = self.file_upload_button.text()
 
         if image_path.endswith("/"):
             if image_path.split("/")[-2].endswith(".jpg"):
@@ -86,10 +116,17 @@ class MyWindow(QWidget):
                     self.layout().addWidget(label)
 
                 # Add labels for each similar image
-                for img_file in similar_images:
+                for image_data in similar_images:
+                    img_file = image_data[0]
+                    similarity_percentage = image_data[1]
+                    image = ImageWidget(img_file)
                     label = QLabel()
                     label.setText(img_file)
-                    self.layout().addWidget(label)
+                    percentage_label = QLabel()
+                    percentage_label.setText(str(similarity_percentage))
+                    self.main_layout.addWidget(image)
+                    self.main_layout.addWidget(label)
+                    self.main_layout.addWidget(percentage_label)
 
             except Exception as error:
                 label = QLabel()
